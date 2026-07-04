@@ -41,14 +41,14 @@ COPY --from=build /code/Frontend/ecommerce_inventory/build /code/Backend/Ecommer
 COPY --from=build /code/Frontend/ecommerce_inventory/build/index.html \
     /code/Backend/EcommerceInventory/EcommerceInventory/templates/index.html
 
-# Run Django commands
 WORKDIR /code/Backend/EcommerceInventory
-
-RUN python manage.py migrate
-RUN python manage.py collectstatic --no-input
 
 # Expose Gunicorn port
 EXPOSE 8000
 
-# Start Gunicorn
-CMD ["gunicorn", "EcommerceInventory.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Run migrations and collectstatic at container start (needs a live DB
+# connection + real env vars, neither of which exist during docker build),
+# then start Gunicorn.
+CMD python manage.py migrate && \
+    python manage.py collectstatic --no-input && \
+    gunicorn EcommerceInventory.wsgi:application --bind 0.0.0.0:8000

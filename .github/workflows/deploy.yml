@@ -38,5 +38,16 @@ jobs:
           docker pull ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest
           docker stop eccomerce-backend || true
           docker rm eccomerce-backend || true
-          docker run -d --name eccomerce-backend -p 8000:8000 ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest
+          docker run -d --name eccomerce-backend -p 8000:8000 \
+            -e SECRET_KEY='${{ secrets.SECRET_KEY }}' \
+            -e DATABASE_NAME='${{ secrets.DATABASE_NAME }}' \
+            -e DATABASE_USER='${{ secrets.DATABASE_USER }}' \
+            -e DATABASE_PASSWORD='${{ secrets.DATABASE_PASSWORD }}' \
+            -e DATABASE_HOST='${{ secrets.DATABASE_HOST }}' \
+            -e DATABASE_PORT='${{ secrets.DATABASE_PORT }}' \
+            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
+            -e AWS_ACESS_KEY_SECRET='${{ secrets.AWS_ACESS_KEY_SECRET }}' \
+            -e AWS_STORAGE_BUCKET_NAME='${{ secrets.AWS_STORAGE_BUCKET_NAME }}' \
+            -e AWS_S3_REGION_NAME='${{ secrets.AWS_S3_REGION_NAME }}' \
+            ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest
           EOF
