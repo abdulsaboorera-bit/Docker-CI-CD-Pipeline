@@ -34,14 +34,18 @@ jobs:
           username: ubuntu
           key: ${{ secrets.AWS_EC2_KEY }}
           script: |
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            if ! command -v docker >/dev/null 2>&1; then
+              curl -fsSL https://get.docker.com | sudo sh
+            fi
 
-            docker pull ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest
+            sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
-            docker stop eccomerce-backend || true
-            docker rm eccomerce-backend || true
+            sudo docker pull ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest
 
-            docker run -d --name eccomerce-backend -p 8000:8000 \
+            sudo docker stop eccomerce-backend || true
+            sudo docker rm eccomerce-backend || true
+
+            sudo docker run -d --name eccomerce-backend -p 8000:8000 \
               -e SECRET_KEY="${{ secrets.SECRET_KEY }}" \
               -e DATABASE_NAME="${{ secrets.DATABASE_NAME }}" \
               -e DATABASE_USER="${{ secrets.DATABASE_USER }}" \
