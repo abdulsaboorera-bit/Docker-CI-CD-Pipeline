@@ -1,53 +1,55 @@
 name: deploy on AWS
+
 on:
   push:
     branches:
       - main
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push Docker image
+      - name: Build and push image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest .
           docker push ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest
 
-      - name: setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.AWS_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.AWS_EC2_IP }} >> ~/.ssh/known_hosts
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_EC2_IP }}
+          username: ubuntu
+          key: ${{ secrets.AWS_EC2_KEY }}
+          script: |
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Deploy to AWS EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
-          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-          docker pull ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest
-          docker stop eccomerce-backend || true
-          docker rm eccomerce-backend || true
-          docker run -d --name eccomerce-backend -p 8000:8000 \
-            -e SECRET_KEY='${{ secrets.SECRET_KEY }}' \
-            -e DATABASE_NAME='${{ secrets.DATABASE_NAME }}' \
-            -e DATABASE_USER='${{ secrets.DATABASE_USER }}' \
-            -e DATABASE_PASSWORD='${{ secrets.DATABASE_PASSWORD }}' \
-            -e DATABASE_HOST='${{ secrets.DATABASE_HOST }}' \
-            -e DATABASE_PORT='${{ secrets.DATABASE_PORT }}' \
-            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
-            -e AWS_ACESS_KEY_SECRET='${{ secrets.AWS_ACESS_KEY_SECRET }}' \
-            -e AWS_STORAGE_BUCKET_NAME='${{ secrets.AWS_STORAGE_BUCKET_NAME }}' \
-            -e AWS_S3_REGION_NAME='${{ secrets.AWS_S3_REGION_NAME }}' \
-            ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest
-          EOF
+            docker pull ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest
+
+            docker stop eccomerce-backend || true
+            docker rm eccomerce-backend || true
+
+            docker run -d --name eccomerce-backend -p 8000:8000 \
+              -e SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+              -e DATABASE_NAME="${{ secrets.DATABASE_NAME }}" \
+              -e DATABASE_USER="${{ secrets.DATABASE_USER }}" \
+              -e DATABASE_PASSWORD="${{ secrets.DATABASE_PASSWORD }}" \
+              -e DATABASE_HOST="${{ secrets.DATABASE_HOST }}" \
+              -e DATABASE_PORT="${{ secrets.DATABASE_PORT }}" \
+              -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+              -e AWS_ACCESS_KEY_SECRET="${{ secrets.AWS_ACCESS_KEY_SECRET }}" \
+              -e AWS_STORAGE_BUCKET_NAME="${{ secrets.AWS_STORAGE_BUCKET_NAME }}" \
+              -e AWS_S3_REGION_NAME="${{ secrets.AWS_S3_REGION_NAME }}" \
+              ${{ secrets.DOCKER_USERNAME }}/eccomerce-backend:latest
